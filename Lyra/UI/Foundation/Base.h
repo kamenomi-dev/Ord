@@ -1,68 +1,16 @@
 #pragma once
+#include <memory>
+#include <mutex>
 #include <random>
 #include <vector>
 
 #include <gsl/gsl>
 
-#include "Native.h"
+#include "../Native.h"
+#include "./Internal.h"
+#include "./Managers.h"
 
-// forward declaration
-namespace Lyra::UI::Components {
-class Window;
-};
-
-namespace Lyra::UI::Foundation {
-class Renderer final {
-  public:
-    Renderer()                           = default;
-    Renderer(Renderer&&)                 = delete;
-    Renderer(const Renderer&)            = delete;
-    Renderer& operator=(Renderer&&)      = delete;
-    Renderer& operator=(const Renderer&) = delete;
-    ~Renderer()                          = default;
-
-    Gdiplus::Graphics& AllocGraphics() {
-        if (_graphics == nullptr) {
-            _graphics = new Gdiplus::Graphics{_swapchain.GetSwapchainContext()};
-        }
-
-        return *_graphics;
-    };
-
-    void Invalidate(const Gdiplus::Rect invalidatedRect) const {
-        RECT rect{};
-        rect.left   = invalidatedRect.X;
-        rect.top    = invalidatedRect.Y;
-        rect.right  = invalidatedRect.GetRight();
-        rect.bottom = invalidatedRect.GetBottom();
-        InvalidateRect(_swapchain.GetTargetWindow(), &rect, FALSE);
-    }
-
-  private:
-    friend class Components::Window;
-
-    void ApplyWindow(HWND windowHandle) { _swapchain.BindToWindow(windowHandle); };
-
-    bool Present() { return _swapchain.PresentBuffer(); };
-    void UpdateSize(LPARAM lParam) {
-        _swapchain.UpdateSize(lParam);
-
-        if (_swapchain.Invalid()) {
-            return;
-        }
-
-        if (_graphics != nullptr) {
-            delete _graphics;
-        }
-
-        _graphics = new Gdiplus::Graphics{_swapchain.GetSwapchainContext()};
-    };
-
-  private:
-    Native::Swapchain              _swapchain = {};
-    gsl::owner<Gdiplus::Graphics*> _graphics  = nullptr;
-};
-
+namespace Lyra::UI::Foundation::Base {
 class Object {
   public:
     std::wstring_view Type = L"Object";
@@ -81,7 +29,7 @@ class RenderableObject : public Object {
     RenderableObject& operator=(RenderableObject&&)      = delete;
 
   public:
-    virtual bool Render(Foundation::Renderer& renderer) {
+    virtual bool Render(Foundation::Managers::Renderer& renderer) {
         auto& graphics = renderer.AllocGraphics();
 
         static std::random_device              randomDevice{};
@@ -94,7 +42,7 @@ class RenderableObject : public Object {
 
         return true;
     };
-    virtual bool PreRender(Foundation::Renderer& renderer) = 0;
+    virtual bool PreRender(Foundation::Managers::Renderer& renderer) = 0;
 
   public:
     auto IsVisible() const { return _isVisible; }
@@ -291,7 +239,7 @@ struct Node : NodeBase {
 template <bool IsNestable = false>
 class RenderableNode : public Node<IsNestable>, public RenderableObject {
   public:
-    bool PreRender(Foundation::Renderer& renderer) override {
+    bool PreRender(Foundation::Managers::Renderer& renderer) override {
         if (!IsVisible()) {
             return false;
         }
@@ -315,4 +263,4 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
         return true;
     }
 };
-} // namespace Lyra::UI::Foundation
+} // namespace Lyra::UI::Foundation::Base

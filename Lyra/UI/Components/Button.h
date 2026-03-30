@@ -1,8 +1,8 @@
 #pragma once
-#include "../Foundation.h"
+#include "../Foundation/Base.h"
 
 namespace Lyra::UI::Components {
-class Button : public Foundation::RenderableNode<false> {
+class Button : public Foundation::Base::RenderableNode<false> {
   public:
     Button()                         = default;
     Button(Button&&)                 = delete;
@@ -10,7 +10,7 @@ class Button : public Foundation::RenderableNode<false> {
     Button& operator=(Button&&)      = delete;
     Button& operator=(const Button&) = delete;
 
-    bool Render(Foundation::Renderer& renderer) override {
+    bool Render(Foundation::Managers::Renderer& renderer) override {
         auto& graphics = renderer.AllocGraphics();
 
         graphics.Clear(Gdiplus::Color::Red);

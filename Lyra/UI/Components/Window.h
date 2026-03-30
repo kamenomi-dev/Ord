@@ -1,10 +1,10 @@
 #pragma once
-#include "../Foundation.h"
+#include "../Foundation/Base.h"
 #include "Button.h"
 #include "Layout.h"
 
 namespace Lyra::UI::Components {
-class Window : public Foundation::RenderableNode<true> {
+class Window : public Foundation::Base::RenderableNode<true> {
   public:
     Window(Window&&)                 = default;
     Window(const Window&)            = delete;
@@ -41,7 +41,7 @@ class Window : public Foundation::RenderableNode<true> {
     }
     void Present() { renderer.Present(); }
 
-    bool Render(Foundation::Renderer& renderer) override {
+    bool Render(Foundation::Managers::Renderer& renderer) override {
         auto& graphics = renderer.AllocGraphics();
         graphics.Clear(Gdiplus::Color(0xFF262626));
         return true;
@@ -49,6 +49,6 @@ class Window : public Foundation::RenderableNode<true> {
     bool Render() { return PreRender(renderer); }
 
   public:
-    Foundation::Renderer renderer{};
+    Foundation::Managers::Renderer renderer{};
 };
 } // namespace Lyra::UI::Components

@@ -1,8 +1,7 @@
 #pragma once
-#define NOMINMAX
 #include <numeric>
 
-#include "../Foundation.h"
+#include "../Foundation/Base.h"
 
 namespace Lyra::UI::Components {
 enum class Align : std::uint8_t {
@@ -15,12 +14,12 @@ uint8_t operator&(Align lhs, Align rhs) {
     return (uint8_t)lhs & (uint8_t)rhs;
 }
 
-class Layout : public Foundation::RenderableNode<true> {
+class Layout : public Foundation::Base::RenderableNode<true> {
   public:
     using Point      = std::array<uint16_t, 2>;
     using LayoutData = std::vector<Point>;
 
-    bool PreRender(Foundation::Renderer& renderer) {
+    bool PreRender(Foundation::Managers::Renderer& renderer) {
         if (children.empty() || _layout.empty()) {
             return false;
         }
@@ -70,7 +69,7 @@ class Layout : public Foundation::RenderableNode<true> {
         auto& graphics = renderer.AllocGraphics();
         auto  state    = graphics.Save();
 
-        graphics.TranslateTransform(selfRect.X, selfRect.Y);
+        graphics.TranslateTransform((float_t)selfRect.X, (float_t)selfRect.Y);
         graphics.IntersectClip(Gdiplus::Rect(0, 0, selfRect.Width, selfRect.Height));
         Render(renderer);
         graphics.Restore(state);
