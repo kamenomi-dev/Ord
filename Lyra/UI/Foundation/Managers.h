@@ -51,24 +51,84 @@ class Renderer final {
     std::shared_ptr<Gdiplus::Graphics> _graphics  = nullptr;
 };
 
-// Singleton
+// Font Management
 
-class ResourceManager final {
-  public:
-    ResourceManager(ResourceManager&&)                 = delete;
-    ResourceManager(const ResourceManager&)            = delete;
-    ResourceManager& operator=(ResourceManager&&)      = delete;
-    ResourceManager& operator=(const ResourceManager&) = delete;
-    ~ResourceManager()                                 = default;
+struct FontDescriptor {
+    std::wstring       family = L"Segoe UI";
+    float              size   = 24.0f;
+    Gdiplus::FontStyle style  = Gdiplus::FontStyleRegular;
 
-    static ResourceManager& Get() {
-        static ResourceManager instance; // NOSONAR, this is thread safe since C++11.
-        return instance;
+    bool operator<(const FontDescriptor& other) const {
+        return std::tie(family, size, style) < std::tie(other.family, other.size, other.style);
     }
 
-  private:
-    ResourceManager() = default;
+    bool operator==(const FontDescriptor& other) const {
+        return family == other.family && size == other.size && style == other.style;
+    }
+};
+
+class FontManager final {
+  public:
+    using FontCache = std::shared_ptr<Gdiplus::Font>;
 
   public:
+    FontManager(FontManager&&)                 = delete;
+    FontManager(const FontManager&)            = delete;
+    FontManager& operator=(FontManager&&)      = delete;
+    FontManager& operator=(const FontManager&) = delete;
+    ~FontManager()                             = default;
+
+    static FontManager& Instance() {
+        static FontManager _instance{};
+        return _instance;
+    }
+
+    void Clear() {
+        _fontCache.clear();
+        _aliases.clear();
+    }
+
+    void RegisterAlias(const std::string& alias, const FontDescriptor& desc) { _aliases[alias] = desc; }
+    void RegisterAlias(
+        const std::string&  alias,
+        const std::wstring& fontFamily,
+        float               size,
+        Gdiplus::FontStyle  style = Gdiplus::FontStyleRegular
+    ) {
+        _aliases[alias] = {fontFamily, size, style};
+    }
+
+    FontCache GetFont(const FontDescriptor& desc) {
+        const auto it = _fontCache.find(desc);
+        if (it != _fontCache.end()) {
+            return it->second;
+        }
+
+        auto font = std::make_shared<Gdiplus::Font>(desc.family.c_str(), desc.size, desc.style);
+        if (font->GetLastStatus() != Gdiplus::Ok) {
+            font = std::make_shared<Gdiplus::Font>(L"Segoe UI", 24.0f, Gdiplus::FontStyleRegular);
+        }
+
+        _fontCache[desc] = font;
+        return font;
+    }
+    FontCache
+    GetFont(const std::wstring& fontFamily, float size, Gdiplus::FontStyle style = Gdiplus::FontStyleRegular) {
+        return GetFont({fontFamily, size, style});
+    }
+    FontCache GetFont(const std::string& alias) {
+        const auto it = _aliases.find(alias);
+        if (it != _aliases.end()) {
+            return GetFont(it->second);
+        }
+
+        return GetFont(L"Segoe UI", 24);
+    };
+
+  private:
+    FontManager() = default;
+
+    std::map<FontDescriptor, FontCache>             _fontCache = {};
+    std::unordered_map<std::string, FontDescriptor> _aliases   = {};
 };
 } // namespace Lyra::UI::Foundation::Managers

@@ -141,10 +141,10 @@
     <ClInclude Include="Lyra.h" />
     <ClInclude Include="UI\Components\Button.h" />
     <ClInclude Include="UI\Components\Layout.h" />
+    <ClInclude Include="UI\Components\Text.h" />
     <ClInclude Include="UI\Components\Window.h" />
     <ClInclude Include="UI\Foundation.h" />
     <ClInclude Include="UI\Foundation\Base.h" />
-    <ClInclude Include="UI\Foundation\Internal.h" />
     <ClInclude Include="UI\Foundation\Managers.h" />
     <ClInclude Include="UI\Native.h" />
     <ClInclude Include="UI\Startup.h" />

@@ -19,6 +19,7 @@ class Layout : public Foundation::Base::RenderableNode<true> {
     using Point      = std::array<uint16_t, 2>;
     using LayoutData = std::vector<Point>;
 
+    bool Render(Foundation::Managers::Renderer& renderer) { return true; };
     bool PreRender(Foundation::Managers::Renderer& renderer) {
         if (children.empty() || _layout.empty()) {
             return false;
@@ -49,13 +50,18 @@ class Layout : public Foundation::Base::RenderableNode<true> {
 
         for (uint16_t row = 0; row <= maxRow; ++row) {
             int32_t width = std::accumulate(colWidths.begin(), colWidths.end(), 0);
-            if (maxCol > 0) width += _itemGap * maxCol;
+            if (maxCol > 0) {
+                width += _itemGap * maxCol;
+            }
+
             rowWidths[row] = width;
         }
 
         int32_t requiredWidth  = *std::max_element(rowWidths.begin(), rowWidths.end());
         int32_t requiredHeight = std::accumulate(rowHeights.begin(), rowHeights.end(), 0);
-        if (maxRow > 0) requiredHeight += _rowGap * maxRow;
+        if (maxRow > 0) {
+            requiredHeight += _rowGap * maxRow;
+        }
 
         const auto selfRect = GetObjectRect();
         float_t    x        = 0;

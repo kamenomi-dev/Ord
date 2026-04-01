@@ -183,6 +183,8 @@ void Initialize(HINSTANCE processInstance) {
     Gdiplus::GdiplusStartup(&g_gdiplusToken, &input, nullptr);
 }
 void Uninitialize() {
+    Lyra::UI::Foundation::Managers::FontManager::Instance().Clear();
+
     Gdiplus::GdiplusShutdown(g_gdiplusToken);
     g_gdiplusToken    = NULL;
     g_processInstance = nullptr;

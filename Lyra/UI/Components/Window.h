@@ -1,5 +1,6 @@
 #pragma once
 #include "../Foundation/Base.h"
+#include "Text.h"
 #include "Button.h"
 #include "Layout.h"
 
@@ -21,12 +22,19 @@ class Window : public Foundation::Base::RenderableNode<true> {
             {1, 0},
             {2, 0}
         });
+        layout->SetZIndex(0);
 
         for (uint8_t i = 0; i < 3; i++) {
             gsl::owner<Button*> button = new Button{};
             button->SetObjectRect({0, 0, 48, 30});
             layout->AppendChild(button);
         }
+
+        gsl::owner<Text*> text = new Text{};
+        text->SetObjectRect({0, 0, 200, 30});
+        text->SetContent(L"Lyra UI Framework");
+        text->SetZIndex(1);
+        AppendChild(text);
 
         AppendChild(layout);
     }
@@ -41,11 +49,12 @@ class Window : public Foundation::Base::RenderableNode<true> {
     }
     void Present() { renderer.Present(); }
 
-    bool Render(Foundation::Managers::Renderer& renderer) override {
+    bool Render(Foundation::Managers::Renderer&) override { return true; }
+    void DrawBackground(Foundation::Managers::Renderer& renderer, const Gdiplus::Rect& rect) override {
         auto& graphics = renderer.AllocGraphics();
         graphics.Clear(Gdiplus::Color(0xFF262626));
-        return true;
-    };
+    }
+
     bool Render() { return PreRender(renderer); }
 
   public:

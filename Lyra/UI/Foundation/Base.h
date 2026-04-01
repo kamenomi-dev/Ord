@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 #include <memory>
 #include <mutex>
 #include <random>
@@ -29,19 +30,8 @@ class RenderableObject : public Object {
     RenderableObject& operator=(RenderableObject&&)      = delete;
 
   public:
-    virtual bool Render(Foundation::Managers::Renderer& renderer) {
-        auto& graphics = renderer.AllocGraphics();
-
-        static std::random_device              randomDevice{};
-        static std::mt19937                    randomEngine{randomDevice()};
-        static std::uniform_int_distribution<> distribution{0x00, 0xFF};
-
-        graphics.Clear(
-            Gdiplus::Color(distribution(randomEngine), distribution(randomEngine), distribution(randomEngine))
-        );
-
-        return true;
-    };
+    virtual bool Render(Foundation::Managers::Renderer& renderer) = 0;
+    virtual void DrawBackground(Foundation::Managers::Renderer& renderer, const Gdiplus::Rect& = {}) {}
     virtual bool PreRender(Foundation::Managers::Renderer& renderer) = 0;
 
   public:
@@ -251,6 +241,7 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
         graphics.TranslateTransform(targetRect.X * 1.f, targetRect.Y * 1.f);
         graphics.IntersectClip(Gdiplus::Rect(0, 0, targetRect.Width, targetRect.Height));
 
+        DrawBackground(renderer, Gdiplus::Rect(0, 0, targetRect.Width, targetRect.Height));
         Render(renderer);
 
         if constexpr (IsNestable) {
