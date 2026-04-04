@@ -18,6 +18,8 @@ class Renderer final {
             _graphics = std::make_shared<Gdiplus::Graphics>(_swapchain.GetSwapchainContext());
         }
 
+        _graphics->SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias8x8);
+        _graphics->SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
         return *_graphics;
     };
 
@@ -43,7 +45,7 @@ class Renderer final {
             return;
         }
 
-        _graphics = std::make_shared<Gdiplus::Graphics>(_swapchain.GetSwapchainContext());
+        AllocGraphics();
     };
 
   private:

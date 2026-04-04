@@ -2,24 +2,15 @@
 #include <numeric>
 
 #include "../Foundation/Base.h"
+#include "Declare.h"
 
 namespace Lyra::UI::Components {
-enum class Align : std::uint8_t {
-    Start  = 0b00,
-    Center = 0b01,
-    End    = 0b10
-};
-
-uint8_t operator&(Align lhs, Align rhs) {
-    return (uint8_t)lhs & (uint8_t)rhs;
-}
-
 class Layout : public Foundation::Base::RenderableNode<true> {
   public:
     using Point      = std::array<uint16_t, 2>;
     using LayoutData = std::vector<Point>;
 
-    bool Render(Foundation::Managers::Renderer& renderer) { return true; };
+    bool Render(Foundation::Managers::Renderer&) { return true; };
     bool PreRender(Foundation::Managers::Renderer& renderer) {
         if (children.empty() || _layout.empty()) {
             return false;
@@ -42,7 +33,7 @@ class Layout : public Foundation::Base::RenderableNode<true> {
             const auto row = _layout[i][1];
 
             auto*       child = static_cast<RenderableNode*>(children[i]);
-            const auto& rect  = child->GetObjectRect();
+            const auto& rect  = child->GetLayoutRect();
 
             colWidths[col]  = std::max(colWidths[col], rect.Width);
             rowHeights[row] = std::max(rowHeights[row], rect.Height);
@@ -63,14 +54,14 @@ class Layout : public Foundation::Base::RenderableNode<true> {
             requiredHeight += _rowGap * maxRow;
         }
 
-        const auto selfRect = GetObjectRect();
+        const auto selfRect = GetLayoutRect();
         float_t    x        = 0;
         float_t    y        = 0;
 
-        if (_alignX & Align::Center) x = (GetObjectRect().Width - requiredWidth) * 0.5f;
-        else if (_alignX & Align::End) x = (float_t)(GetObjectRect().Width - requiredWidth);
-        if (_alignY & Align::Center) y = (GetObjectRect().Height - requiredHeight) * 0.5f;
-        else if (_alignY & Align::End) y = (float_t)(GetObjectRect().Height - requiredHeight);
+        if (_alignX & Align::Center) x = (GetLayoutRect().Width - requiredWidth) * 0.5f;
+        else if (_alignX & Align::End) x = (float_t)(GetLayoutRect().Width - requiredWidth);
+        if (_alignY & Align::Center) y = (GetLayoutRect().Height - requiredHeight) * 0.5f;
+        else if (_alignY & Align::End) y = (float_t)(GetLayoutRect().Height - requiredHeight);
 
         auto& graphics = renderer.AllocGraphics();
         auto  state    = graphics.Save();

@@ -152,13 +152,18 @@
   <ItemGroup>
     <ClInclude Include="Lyra.h" />
     <ClInclude Include="UI\Components\Button.h" />
+    <ClInclude Include="UI\Components\Declare.h" />
     <ClInclude Include="UI\Components\Layout.h" />
     <ClInclude Include="UI\Components\Text.h" />
     <ClInclude Include="UI\Components\Window.h" />
     <ClInclude Include="UI\Foundation\Base.h" />
+    <ClInclude Include="UI\Foundation\Events.h" />
     <ClInclude Include="UI\Foundation\Managers.h" />
     <ClInclude Include="UI\Native.h" />
     <ClInclude Include="UI\Startup.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="Others\CommonManifest.manifest" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

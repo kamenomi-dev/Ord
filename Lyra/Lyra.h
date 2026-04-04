@@ -115,6 +115,20 @@ class WindowFoundation {
             return true;
         }
 
+        if (uMsg == WM_MOUSEMOVE) {
+            Gdiplus::Point position(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+
+            UI::Foundation::Events::EventPayloads::MouseData data{position, true};
+            _selfLayout->DispatchEvent(UI::Foundation::Events::EventArgs::EventTypes::MouseEvent, data, position);
+        }
+
+        if (uMsg == WM_LBUTTONDOWN) {
+            Gdiplus::Point position(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+
+            UI::Foundation::Events::EventPayloads::MouseData data{position, true};
+            _selfLayout->DispatchEvent(UI::Foundation::Events::EventArgs::EventTypes::MouseEvent, data, position);
+        }
+
         return false;
     }
 

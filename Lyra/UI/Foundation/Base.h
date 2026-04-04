@@ -8,7 +8,7 @@
 #include <gsl/gsl>
 
 #include "../Native.h"
-#include "./Internal.h"
+#include "./Events.h"
 #include "./Managers.h"
 
 namespace Lyra::UI::Foundation::Base {
@@ -30,20 +30,33 @@ class RenderableObject : public Object {
     RenderableObject& operator=(RenderableObject&&)      = delete;
 
   public:
-    virtual bool Render(Foundation::Managers::Renderer& renderer) = 0;
-    virtual void DrawBackground(Foundation::Managers::Renderer& renderer, const Gdiplus::Rect& = {}) {}
+    virtual RenderableObject* HitTest(const Gdiplus::Point&) = 0;
+    virtual void              ProcessEvent(const Events::EventArgs& e) { e; }
+
+    virtual bool Render(Foundation::Managers::Renderer& renderer)    = 0;
     virtual bool PreRender(Foundation::Managers::Renderer& renderer) = 0;
+
+    virtual void UpdateInteractBound(Gdiplus::Rect rect) { _interactBound = rect; };
 
   public:
     auto IsVisible() const { return _isVisible; }
     void SetVisible(bool visible) { _isVisible = visible; }
 
-    auto GetObjectRect() const { return _objectRect; }
-    void SetObjectRect(Gdiplus::Rect rect) { _objectRect = rect; }
+    auto GetLayoutRect() const { return _layoutRect; }
+    void SetLayoutRect(Gdiplus::Rect rect) {
+        _layoutRect = rect;
+        UpdateInteractBound(rect);
+    }
+
+  protected:
+    bool BaseHitTest(const Gdiplus::Point& mousePosition) const {
+        return _isVisible && _interactBound.Contains(mousePosition);
+    }
 
   private:
-    bool          _isVisible  = true;
-    Gdiplus::Rect _objectRect = {};
+    bool          _isVisible     = true;
+    Gdiplus::Rect _layoutRect    = {};
+    Gdiplus::Rect _interactBound = {};
 };
 
 struct NodeBase {
@@ -57,7 +70,7 @@ struct NodeBase {
     NodeBase& operator=(NodeBase&&)      = delete;
 
   public:
-    std::size_t            zIndex   = 0;
+    std::uint32_t          zIndex   = 0;
     NodeBase*              parent   = nullptr;
     std::vector<NodeBase*> children = {};
 
@@ -71,22 +84,17 @@ struct NodeBase {
 
     auto& GetChildren() { return children; }
 
-    virtual void AppendChild(NodeBase* child, std::size_t z = std::numeric_limits<std::size_t>::max()) = 0;
-    virtual void RemoveChild(NodeBase* child)                                                          = 0;
-    virtual void Sort(bool recursive = true)                                                           = 0;
+    virtual void AppendChild(NodeBase* child, uint32_t z = std::numeric_limits<uint32_t>::max()) = 0;
+    virtual void RemoveChild(NodeBase* child)                                                    = 0;
+    virtual void Sort(bool recursive = true)                                                     = 0;
 
-    std::size_t GetZIndex() const { return zIndex; }
-    void        SetZIndex(std::size_t index) {
-        zIndex = index;
-
-        if (parent) {
-            parent->Sort(false);
+    void Reparent(NodeBase* newParent, uint32_t z = std::numeric_limits<uint32_t>::max()) {
+        if (newParent == this) {
+            return;
         }
-    }
 
-    void Reparent(NodeBase* newParent, std::size_t z = std::numeric_limits<std::size_t>::max()) {
         if (parent == newParent) {
-            if (z != std::numeric_limits<std::size_t>::max()) {
+            if (z != std::numeric_limits<uint32_t>::max()) {
                 SetZIndex(z);
                 if (parent) {
                     parent->Sort(false);
@@ -104,8 +112,17 @@ struct NodeBase {
             return;
         }
 
-        if (z != std::numeric_limits<std::size_t>::max()) {
+        if (z != std::numeric_limits<uint32_t>::max()) {
             SetZIndex(z);
+        }
+    }
+
+    uint32_t GetZIndex() const { return zIndex; }
+    void     SetZIndex(int32_t index) {
+        zIndex = index;
+
+        if (parent) {
+            parent->Sort(false);
         }
     }
 
@@ -141,10 +158,11 @@ struct NodeBase {
 };
 
 template <bool IsNestable>
-struct Node : NodeBase {
+struct Node : public NodeBase {
+  public:
     bool Nestable() const override { return IsNestable; }
 
-    void AppendChild(NodeBase* child, std::size_t z = std::numeric_limits<std::size_t>::max()) override {
+    void AppendChild(NodeBase* child, uint32_t z = std::numeric_limits<uint32_t>::max()) override {
         if constexpr (!IsNestable) {
             return;
         }
@@ -154,7 +172,7 @@ struct Node : NodeBase {
         }
 
         if (child->parent == this) {
-            if (z == std::numeric_limits<std::size_t>::max()) {
+            if (z == std::numeric_limits<uint32_t>::max()) {
                 return;
             }
 
@@ -167,7 +185,7 @@ struct Node : NodeBase {
             child->parent->RemoveChild(child);
         }
 
-        if (z == std::numeric_limits<std::size_t>::max()) {
+        if (z == std::numeric_limits<uint32_t>::max()) {
             if (children.empty()) {
                 z = 0;
             }
@@ -229,24 +247,49 @@ struct Node : NodeBase {
 template <bool IsNestable = false>
 class RenderableNode : public Node<IsNestable>, public RenderableObject {
   public:
+    virtual RenderableObject* HitTest(const Gdiplus::Point& screenPos) override {
+        if (!BaseHitTest(screenPos)) {
+            return nullptr;
+        }
+
+        if constexpr (IsNestable) {
+            const std::vector<NodeBase*>& children     = this->GetChildren();
+            RenderableObject*             targetObject = nullptr;
+
+            for (auto it = children.rbegin(); it != children.rend(); ++it) {
+                if (auto child = *it) {
+                    auto node = static_cast<Node<IsNestable>*>(child);
+
+                    targetObject = (static_cast<RenderableNode*>(node))->HitTest(screenPos);
+                }
+
+                if (targetObject) {
+                    return targetObject;
+                }
+            }
+        }
+
+        return this;
+    }
+
     bool PreRender(Foundation::Managers::Renderer& renderer) override {
         if (!IsVisible()) {
             return false;
         }
 
         auto& graphics   = renderer.AllocGraphics();
-        auto  targetRect = GetObjectRect();
+        auto  targetRect = GetLayoutRect();
 
         const auto state = graphics.Save();
         graphics.TranslateTransform(targetRect.X * 1.f, targetRect.Y * 1.f);
         graphics.IntersectClip(Gdiplus::Rect(0, 0, targetRect.Width, targetRect.Height));
 
-        DrawBackground(renderer, Gdiplus::Rect(0, 0, targetRect.Width, targetRect.Height));
         Render(renderer);
 
         if constexpr (IsNestable) {
             for (auto* child : this->GetChildren()) {
-                ((RenderableNode*)(Node<IsNestable>*)child)->PreRender(renderer);
+                auto node = static_cast<Node<IsNestable>*>(child);
+                static_cast<RenderableNode*>(node)->PreRender(renderer);
             }
         }
 
