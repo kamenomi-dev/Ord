@@ -39,6 +39,7 @@ class Renderer final {
 
     bool Present() { return _swapchain.PresentBuffer(); };
     void UpdateSize(LPARAM lParam) {
+        _graphics.reset();
         _swapchain.UpdateSize(lParam);
 
         if (_swapchain.Invalid()) {
