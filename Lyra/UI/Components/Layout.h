@@ -39,9 +39,6 @@ class Layout : public Foundation::Base::RenderableNode<true> {
         _isDirty = true;
     }
 
-    // void SetLayoutRect() {
-    //}
-
     void SetAlign(Align x, Align y) noexcept {
         _alignX  = x;
         _alignY  = y;

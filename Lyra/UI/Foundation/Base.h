@@ -7,11 +7,12 @@
 
 #include <gsl/gsl>
 
-#include "../Native.h"
-#include "./Events.h"
-#include "./Managers.h"
+#include "Events.h"
+#include "Managers.h"
 
 namespace Lyra::UI::Foundation::Base {
+// ===== Object ====
+
 class Object {
   public:
     std::wstring_view Type = L"Object";
@@ -50,9 +51,7 @@ class RenderableObject : public Object {
     }
 
   protected:
-    bool BaseHitTest(const Gdiplus::Point& mousePosition) const {
-        return _isVisible && !_isPermeable && _interactBound.Contains(mousePosition);
-    }
+    bool BaseHitTest(const Gdiplus::Point& mousePosition) const { return _isVisible && !_isPermeable && _interactBound.Contains(mousePosition); }
 
   private:
     bool          _isVisible     = true;
@@ -60,6 +59,8 @@ class RenderableObject : public Object {
     Gdiplus::Rect _layoutRect    = {};
     Gdiplus::Rect _interactBound = {};
 };
+
+// ===== Node ====
 
 struct NodeBase {
   public:
@@ -232,9 +233,7 @@ struct Node : public NodeBase {
             return;
         }
 
-        std::stable_sort(children.begin(), children.end(), [](NodeBase* lhs, NodeBase* rhs) {
-            return lhs->GetZIndex() < rhs->GetZIndex();
-        });
+        std::stable_sort(children.begin(), children.end(), [](NodeBase* lhs, NodeBase* rhs) { return lhs->GetZIndex() < rhs->GetZIndex(); });
 
         RefreshChildrenLinks();
 
@@ -261,10 +260,15 @@ struct Node : public NodeBase {
     uint32_t _uniqueID = std::numeric_limits<uint32_t>::max();
 };
 
+struct PreRenderContext {
+    Foundation::Managers::Renderer* renderer  = nullptr;
+    Gdiplus::Rect                   dirtyRect = {};
+};
+
 template <bool IsNestable = false>
 class RenderableNode : public Node<IsNestable>, public RenderableObject {
   public:
-    virtual RenderableNode* HitTest(const Gdiplus::Point& screenPos) override {
+    RenderableNode* HitTest(const Gdiplus::Point& screenPos) override {
         if (!BaseHitTest(screenPos)) {
             return nullptr;
         }
@@ -297,9 +301,11 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
         auto& graphics   = renderer.AllocGraphics();
         auto  targetRect = GetLayoutRect();
 
-        const auto state = graphics.Save();
-        graphics.TranslateTransform(targetRect.X * 1.f, targetRect.Y * 1.f);
-        graphics.IntersectClip(Gdiplus::Rect(0, 0, targetRect.Width, targetRect.Height));
+        Gdiplus::GraphicsState state;
+        const auto             pGraphics = graphics.GetGraphics();
+        Native::DllExports::GdipSaveGraphics(pGraphics, &state);
+        Native::DllExports::GdipTranslateWorldTransform(pGraphics, targetRect.X * 1.f, targetRect.Y * 1.f, Gdiplus::MatrixOrderAppend);
+        Native::DllExports::GdipSetClipRectI(pGraphics, 0, 0, targetRect.Width, targetRect.Height, Gdiplus::CombineModeIntersect);
 
         Render(renderer);
 
@@ -310,7 +316,7 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
             }
         }
 
-        graphics.Restore(state);
+        Native::DllExports::GdipRestoreGraphics(pGraphics, state);
         return true;
     }
 };

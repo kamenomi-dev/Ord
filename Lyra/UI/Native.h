@@ -8,7 +8,7 @@
 #pragma comment(lib, "gdiplus.lib")
 
 #undef GDIPVER
-
+#include "Native/GdipPtr.h"
 namespace Lyra::UI::Native {
 class Swapchain final {
   public:

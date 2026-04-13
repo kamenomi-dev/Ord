@@ -1,4 +1,7 @@
 ﻿#pragma once
+#include "../Native/GdipPtr.h"
+#include "../Native/BufferedGraphics.h"
+
 namespace Lyra::UI::Components {
 class Window;
 };
@@ -13,15 +16,7 @@ class Renderer final {
     Renderer& operator=(const Renderer&) = delete;
     ~Renderer()                          = default;
 
-    Gdiplus::Graphics& AllocGraphics() {
-        if (!_graphics) {
-            _graphics = std::make_shared<Gdiplus::Graphics>(_swapchain.GetSwapchainContext());
-        }
-
-        _graphics->SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias8x8);
-        _graphics->SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
-        return *_graphics;
-    };
+    auto& AllocGraphics() { return _bufferedGraphics; };
 
     void Invalidate(const Gdiplus::Rect invalidatedRect) const {
         RECT rect{};
@@ -29,29 +24,19 @@ class Renderer final {
         rect.top    = invalidatedRect.Y;
         rect.right  = invalidatedRect.GetRight();
         rect.bottom = invalidatedRect.GetBottom();
-        InvalidateRect(_swapchain.GetTargetWindow(), &rect, FALSE);
+        InvalidateRect(_bufferedGraphics.GetWindow(), &rect, FALSE);
     }
 
   private:
     friend class Components::Window;
 
-    void ApplyWindow(HWND windowHandle) { _swapchain.BindToWindow(windowHandle); };
+    void ApplyWindow(HWND windowHandle) { _bufferedGraphics.BindToWindow(windowHandle); };
 
-    bool Present() { return _swapchain.PresentBuffer(); };
-    void UpdateSize(LPARAM lParam) {
-        _graphics.reset();
-        _swapchain.UpdateSize(lParam);
-
-        if (_swapchain.Invalid()) {
-            return;
-        }
-
-        AllocGraphics();
-    };
+    bool Present() { return _bufferedGraphics.PresentBuffer(); };
+    void UpdateSize(LPARAM lParam) { _bufferedGraphics.UpdateSize(lParam); };
 
   private:
-    Native::Swapchain                  _swapchain = {};
-    std::shared_ptr<Gdiplus::Graphics> _graphics  = nullptr;
+    Native::BufferedGraphics _bufferedGraphics = {};
 };
 
 // Font Management
@@ -61,18 +46,14 @@ struct FontDescriptor {
     float              size   = 24.0f;
     Gdiplus::FontStyle style  = Gdiplus::FontStyleRegular;
 
-    bool operator<(const FontDescriptor& other) const {
-        return std::tie(family, size, style) < std::tie(other.family, other.size, other.style);
-    }
+    bool operator<(const FontDescriptor& other) const { return std::tie(family, size, style) < std::tie(other.family, other.size, other.style); }
 
-    bool operator==(const FontDescriptor& other) const {
-        return family == other.family && size == other.size && style == other.style;
-    }
+    bool operator==(const FontDescriptor& other) const { return family == other.family && size == other.size && style == other.style; }
 };
 
 class FontManager final {
   public:
-    using FontCache = std::shared_ptr<Gdiplus::Font>;
+    using FontCache = Native::GdipPtr<Gdiplus::GpFont>;
 
   public:
     FontManager(FontManager&&)                 = delete;
@@ -92,12 +73,7 @@ class FontManager final {
     }
 
     void RegisterAlias(const std::string& alias, const FontDescriptor& desc) { _aliases[alias] = desc; }
-    void RegisterAlias(
-        const std::string&  alias,
-        const std::wstring& fontFamily,
-        float               size,
-        Gdiplus::FontStyle  style = Gdiplus::FontStyleRegular
-    ) {
+    void RegisterAlias(const std::string& alias, const std::wstring& fontFamily, float size, Gdiplus::FontStyle style = Gdiplus::FontStyleRegular) {
         _aliases[alias] = {fontFamily, size, style};
     }
 
@@ -107,29 +83,31 @@ class FontManager final {
             return it->second;
         }
 
-        auto font = std::make_shared<Gdiplus::Font>(desc.family.c_str(), desc.size, desc.style);
-        if (font->GetLastStatus() != Gdiplus::Ok) {
-            font = std::make_shared<Gdiplus::Font>(L"Segoe UI", 24.0f, Gdiplus::FontStyleRegular);
+        FontCache                              font{};
+        Native::GdipPtr<Gdiplus::GpFontFamily> fontFamily{};
+        Native::DllExports::GdipCreateFontFamilyFromName(desc.family.c_str(), nullptr, fontFamily.At());
+        auto status = Native::DllExports::GdipCreateFont(fontFamily.Get(), desc.size, desc.style, Gdiplus::UnitPixel, font.At());
+
+        if (status != Gdiplus::Ok) {
+            Native::DllExports::GdipCreateFontFamilyFromName(L"Segoe UI", nullptr, fontFamily.At());
+            Native::DllExports::GdipCreateFont(fontFamily.Get(), 24.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel, font.At());
         }
 
-        _fontCache[desc] = font;
+        font.Move(_fontCache[desc]);
         return font;
     }
-    FontCache
-    GetFont(const std::wstring& fontFamily, float size, Gdiplus::FontStyle style = Gdiplus::FontStyleRegular) {
-        return GetFont({fontFamily, size, style});
-    }
+    FontCache GetFont(const std::wstring& fontFamily, float size, Gdiplus::FontStyle style = Gdiplus::FontStyleRegular) { return GetFont({fontFamily, size, style}); }
     FontCache GetFont(const std::string& alias) {
         const auto it = _aliases.find(alias);
         if (it != _aliases.end()) {
             return GetFont(it->second);
         }
 
-        return GetFont(L"Segoe UI", 24);
+        return GetFont("GenericFont");
     };
 
   private:
-    FontManager() = default;
+    FontManager() { RegisterAlias("GenericFont", FontDescriptor{}); };
 
     std::map<FontDescriptor, FontCache>             _fontCache = {};
     std::unordered_map<std::string, FontDescriptor> _aliases   = {};

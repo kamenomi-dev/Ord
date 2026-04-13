@@ -32,20 +32,14 @@ class Window : public Foundation::Base::RenderableNode<true> {
     void Present() { renderer.Present(); }
     bool Render(Foundation::Managers::Renderer& renderer) override {
         auto& graphics = renderer.AllocGraphics();
-        graphics.Clear(Gdiplus::Color(0xFF262626));
+        Native::DllExports::GdipGraphicsClear(graphics.GetGraphics(), 0xFF262626);
 
         return true;
     }
     bool Render() { return PreRender(renderer); }
 
-    void RegisterEventCallback(Foundation::Events::EventCallback callback) {
-        _eventCallbacks.push_back(std::move(callback));
-    }
-    void DispatchEvent(
-        Foundation::Events::EventArgs::EventTypes type,
-        const Foundation::Events::EventPayload&   payload,
-        Gdiplus::Point                            mousePosition
-    ) {
+    void RegisterEventCallback(Foundation::Events::EventCallback callback) { _eventCallbacks.push_back(std::move(callback)); }
+    void DispatchEvent(Foundation::Events::EventArgs::EventTypes type, const Foundation::Events::EventPayload& payload, Gdiplus::Point mousePosition) {
         Foundation::Events::EventArgs e{};
         e.type    = type;
         e.payload = payload;

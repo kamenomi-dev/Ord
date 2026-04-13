@@ -1,3 +1,3 @@
 ﻿#pragma once
-#include "Native.h"
+#include "Native/BufferedGraphics.h"
 #include "Foundation/Base.h"
