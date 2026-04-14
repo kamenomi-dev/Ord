@@ -68,8 +68,8 @@ class FontManager final {
     }
 
     void Clear() {
-        _fontCache.clear();
         _aliases.clear();
+        _fontCache.clear();
     }
 
     void RegisterAlias(const std::string& alias, const FontDescriptor& desc) { _aliases[alias] = desc; }
@@ -85,15 +85,15 @@ class FontManager final {
 
         FontCache                              font{};
         Native::GdipPtr<Gdiplus::GpFontFamily> fontFamily{};
-        Native::DllExports::GdipCreateFontFamilyFromName(desc.family.c_str(), nullptr, fontFamily.At());
-        auto status = Native::DllExports::GdipCreateFont(fontFamily.Get(), desc.size, desc.style, Gdiplus::UnitPixel, font.At());
+        Native::DllExports::GdipCreateFontFamilyFromName(desc.family.c_str(), nullptr, fontFamily.AddressOf());
+        auto status = Native::DllExports::GdipCreateFont(fontFamily.Get(), desc.size, desc.style, Gdiplus::UnitPixel, font.AddressOf());
 
         if (status != Gdiplus::Ok) {
-            Native::DllExports::GdipCreateFontFamilyFromName(L"Segoe UI", nullptr, fontFamily.At());
-            Native::DllExports::GdipCreateFont(fontFamily.Get(), 24.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel, font.At());
+            Native::DllExports::GdipCreateFontFamilyFromName(L"Segoe UI", nullptr, fontFamily.AddressOf());
+            Native::DllExports::GdipCreateFont(fontFamily.Get(), 24.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel, font.AddressOf());
         }
 
-        font.Move(_fontCache[desc]);
+        font.Clone(_fontCache[desc]);
         return font;
     }
     FontCache GetFont(const std::wstring& fontFamily, float size, Gdiplus::FontStyle style = Gdiplus::FontStyleRegular) { return GetFont({fontFamily, size, style}); }

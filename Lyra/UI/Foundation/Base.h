@@ -15,7 +15,22 @@ namespace Lyra::UI::Foundation::Base {
 
 class Object {
   public:
+    uint32_t GetUniqueID() const { return _uniqueID; }
+    void     AssignUniqueID(uint32_t id) {
+        static std::vector<uint32_t> idPool{};
+        if (std::find(idPool.rbegin(), idPool.rend(), id) != idPool.rend()) {
+            throw std::exception("ID has already existed in the pool. It must be unique at all. ");
+        }
+
+        idPool.push_back(id);
+        _uniqueID = id;
+    }
+
+  public:
     std::wstring_view Type = L"Object";
+
+  private:
+    uint32_t _uniqueID = std::numeric_limits<uint32_t>::max();
 };
 
 class RenderableObject : public Object {
@@ -63,16 +78,6 @@ class RenderableObject : public Object {
 // ===== Node ====
 
 struct NodeBase {
-  public:
-    NodeBase()          = default;
-    virtual ~NodeBase() = default;
-
-    NodeBase(const NodeBase&)            = delete;
-    NodeBase& operator=(const NodeBase&) = delete;
-    NodeBase(NodeBase&&)                 = delete;
-    NodeBase& operator=(NodeBase&&)      = delete;
-
-  public:
     std::uint32_t          zIndex   = 0;
     NodeBase*              parent   = nullptr;
     std::vector<NodeBase*> children = {};
@@ -83,22 +88,31 @@ struct NodeBase {
     } sibling = {};
 
   public:
-    virtual bool Nestable() const = 0;
+    NodeBase()          = default;
+    virtual ~NodeBase() = default;
 
+    NodeBase(const NodeBase&)            = delete;
+    NodeBase& operator=(const NodeBase&) = delete;
+    NodeBase(NodeBase&&)                 = delete;
+    NodeBase& operator=(NodeBase&&)      = delete;
+
+  public:
     auto& GetChildren() { return children; }
+};
 
-    virtual void AppendChild(NodeBase* child, uint32_t z = std::numeric_limits<uint32_t>::max()) = 0;
-    virtual void RemoveChild(NodeBase* child)                                                    = 0;
-    virtual void Sort(bool recursive = true)                                                     = 0;
+template <bool IsNestable>
+struct Node : public NodeBase {
+  public:
+    bool Nestable() const { return IsNestable; }
 
-    void Reparent(NodeBase* newParent, uint32_t z = std::numeric_limits<uint32_t>::max()) {
+    void Reparent(Node<true>* newParent, uint32_t zIndex = std::numeric_limits<uint32_t>::max()) {
         if (newParent == this) {
             return;
         }
 
         if (parent == newParent) {
-            if (z != std::numeric_limits<uint32_t>::max()) {
-                SetZIndex(z);
+            if (zIndex != std::numeric_limits<uint32_t>::max()) {
+                SetZIndex(zIndex);
                 if (parent) {
                     parent->Sort(false);
                 }
@@ -111,94 +125,52 @@ struct NodeBase {
         }
 
         if (newParent) {
-            newParent->AppendChild(this, z);
+            newParent->AppendChild(this, zIndex);
             return;
         }
 
-        if (z != std::numeric_limits<uint32_t>::max()) {
-            SetZIndex(z);
+        if (zIndex != std::numeric_limits<uint32_t>::max()) {
+            SetZIndex(zIndex);
         }
     }
 
-    uint32_t GetZIndex() const { return zIndex; }
-    void     SetZIndex(int32_t index) {
-        zIndex = index;
-
-        if (parent) {
-            parent->Sort(false);
-        }
-    }
-
-  protected:
-    void RefreshChildrenLinks() {
-        for (std::size_t index = 0; index < children.size(); ++index) {
-            auto* curr         = children[index];
-            curr->parent       = this;
-            curr->sibling.prev = (index > 0) ? children[index - 1] : nullptr;
-            curr->sibling.next = (index + 1 < children.size()) ? children[index + 1] : nullptr;
-        }
-    }
-
-  private:
-    // Reserved Code
-    template <class Pred>
-    std::vector<NodeBase*> Serialize(Pred const& pred) {
-        std::vector<NodeBase*> result;
-        _SerializeInto(pred, result);
-        return result;
-    }
-
-    template <class Pred>
-    void _SerializeInto(Pred const& pred, std::vector<NodeBase*>& out) {
-        if (pred(this)) {
-            out.push_back(this);
-        }
-
-        for (auto* child : children) {
-            child->_SerializeInto(pred, out);
-        }
-    }
-};
-
-template <bool IsNestable>
-struct Node : public NodeBase {
-  public:
-    bool Nestable() const override { return IsNestable; }
-
-    void AppendChild(NodeBase* child, uint32_t z = std::numeric_limits<uint32_t>::max()) override {
+    template <bool Unused>
+    void AppendChild(Node<Unused>* child, uint32_t zIndex = std::numeric_limits<uint32_t>::max())
+    requires IsNestable
+    {
         if constexpr (!IsNestable) {
             return;
         }
 
-        if (!child || child == this) {
+        if (!child || (child->Nestable() && (Node<true>*)child == this)) {
             return;
         }
 
         if (child->parent == this) {
-            if (z == std::numeric_limits<uint32_t>::max()) {
+            if (zIndex == std::numeric_limits<uint32_t>::max()) {
                 return;
             }
 
-            child->SetZIndex(z);
+            child->SetZIndex(zIndex);
             Sort(false);
             return;
         }
 
         if (child->parent) {
-            child->parent->RemoveChild(child);
+            ((Node<true>*)child->parent)->RemoveChild(child);
         }
 
-        if (z == std::numeric_limits<uint32_t>::max()) {
+        if (zIndex == std::numeric_limits<uint32_t>::max()) {
             if (children.empty()) {
-                z = 0;
+                zIndex = 0;
             }
 
             else {
-                z = children.back()->GetZIndex() + 1;
+                zIndex = ((Node<true>*)children.back())->GetZIndex() + 1;
             }
         }
 
-        child->SetZIndex(z);
+        child->SetZIndex(zIndex);
 
         children.push_back(child);
         child->parent = this;
@@ -206,7 +178,10 @@ struct Node : public NodeBase {
         Sort(false);
     }
 
-    void RemoveChild(NodeBase* child) override {
+    template <bool Unused>
+    void RemoveChild(Node<Unused>* child)
+    requires IsNestable
+    {
         if constexpr (!IsNestable) {
             return;
         }
@@ -228,36 +203,38 @@ struct Node : public NodeBase {
         RefreshChildrenLinks();
     }
 
-    void Sort(bool recursive = true) override {
-        if constexpr (!IsNestable) {
-            return;
-        }
-
-        std::stable_sort(children.begin(), children.end(), [](NodeBase* lhs, NodeBase* rhs) { return lhs->GetZIndex() < rhs->GetZIndex(); });
+    void Sort(bool recursive = true)
+    requires IsNestable
+    {
+        std::stable_sort(children.begin(), children.end(), [](NodeBase* lhs, NodeBase* rhs) { return ((Node<true>*)lhs)->GetZIndex() < ((Node<true>*)rhs)->GetZIndex(); });
 
         RefreshChildrenLinks();
 
         if (recursive) {
             for (auto* child : children) {
-                child->Sort(true);
+                ((Node<true>*)child)->Sort();
             }
         }
     }
 
-    uint32_t GetUniqueID() const { return _uniqueID; }
+    uint32_t GetZIndex() const { return zIndex; }
+    void     SetZIndex(int32_t index) {
+        zIndex = index;
 
-    void AppendUniqueID(uint32_t id) {
-        static std::vector<uint32_t> idPool{};
-        if (std::find(idPool.rbegin(), idPool.rend(), id) != idPool.rend()) {
-            throw std::exception("ID has already existed in the pool. It must be unique at all. ");
+        if (parent) {
+            ((Node<true>*)parent)->Sort(false);
         }
-
-        idPool.push_back(id);
-        _uniqueID = id;
     }
 
-  private:
-    uint32_t _uniqueID = std::numeric_limits<uint32_t>::max();
+  protected:
+    void RefreshChildrenLinks() {
+        for (std::size_t index = 0; index < children.size(); ++index) {
+            auto* curr         = children[index];
+            curr->parent       = this;
+            curr->sibling.prev = (index > 0) ? children[index - 1] : nullptr;
+            curr->sibling.next = (index + 1 < children.size()) ? children[index + 1] : nullptr;
+        }
+    }
 };
 
 struct PreRenderContext {
@@ -268,31 +245,6 @@ struct PreRenderContext {
 template <bool IsNestable = false>
 class RenderableNode : public Node<IsNestable>, public RenderableObject {
   public:
-    RenderableNode* HitTest(const Gdiplus::Point& screenPos) override {
-        if (!BaseHitTest(screenPos)) {
-            return nullptr;
-        }
-
-        if constexpr (IsNestable) {
-            const std::vector<NodeBase*>& children     = this->GetChildren();
-            RenderableNode*               targetObject = nullptr;
-
-            for (auto it = children.rbegin(); it != children.rend(); ++it) {
-                if (auto child = *it) {
-                    auto node = static_cast<Node<IsNestable>*>(child);
-
-                    targetObject = (static_cast<RenderableNode*>(node))->HitTest(screenPos);
-                }
-
-                if (targetObject) {
-                    return targetObject;
-                }
-            }
-        }
-
-        return this;
-    }
-
     bool PreRender(Foundation::Managers::Renderer& renderer) override {
         if (!IsVisible()) {
             return false;
@@ -318,6 +270,31 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
 
         Native::DllExports::GdipRestoreGraphics(pGraphics, state);
         return true;
+    }
+
+    RenderableNode* HitTest(const Gdiplus::Point& screenPos) override {
+        if (!BaseHitTest(screenPos)) {
+            return nullptr;
+        }
+
+        if constexpr (IsNestable) {
+            const std::vector<NodeBase*>& children     = this->GetChildren();
+            RenderableNode*               targetObject = nullptr;
+
+            for (auto it = children.rbegin(); it != children.rend(); ++it) {
+                if (auto child = *it) {
+                    auto node = static_cast<Node<IsNestable>*>(child);
+
+                    targetObject = (static_cast<RenderableNode*>(node))->HitTest(screenPos);
+                }
+
+                if (targetObject) {
+                    return targetObject;
+                }
+            }
+        }
+
+        return this;
     }
 };
 } // namespace Lyra::UI::Foundation::Base

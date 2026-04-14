@@ -20,7 +20,7 @@ class Text : public Foundation::Base::RenderableNode<false> {
         auto& graphics = renderer.AllocGraphics();
 
         Native::GdipPtr<Gdiplus::GpStringFormat> stringFormat;
-        Native::DllExports::GdipCreateStringFormat(NULL, NULL, stringFormat.At());
+        Native::DllExports::GdipCreateStringFormat(NULL, NULL, stringFormat.AddressOf());
         if (_alignX & Align::Center) Native::DllExports::GdipSetStringFormatAlign(stringFormat.Get(), Gdiplus::StringAlignmentCenter);
         else if (_alignX & Align::End) Native::DllExports::GdipSetStringFormatAlign(stringFormat.Get(), Gdiplus::StringAlignmentFar);
         if (_alignY & Align::Center) Native::DllExports::GdipSetStringFormatLineAlign(stringFormat.Get(), Gdiplus::StringAlignmentCenter);
@@ -30,8 +30,8 @@ class Text : public Foundation::Base::RenderableNode<false> {
 
         Native::GdipPtr<Gdiplus::GpSolidFill> fontBrush{};
         Native::GdipPtr<Gdiplus::GpSolidFill> backgroundBrush{};
-        Native::DllExports::GdipCreateSolidFill(_fontColor.GetValue(), fontBrush.At());
-        Native::DllExports::GdipCreateSolidFill(_backgroundColor.GetValue(), backgroundBrush.At());
+        Native::DllExports::GdipCreateSolidFill(_fontColor.GetValue(), fontBrush.AddressOf());
+        Native::DllExports::GdipCreateSolidFill(_backgroundColor.GetValue(), backgroundBrush.AddressOf());
 
         const auto     pGraphics = graphics.GetGraphics();
         auto           rect      = GetLayoutRect();

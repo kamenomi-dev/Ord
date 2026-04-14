@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // GdipPtr.h — a smart & unique pointer for gdiplus objects.
 // Thanks for qk's help — https://github.com/QingKong-s/WinEzCtrlKit/blob/master/eck/GpPtr.h
 
@@ -40,7 +40,7 @@ class GdipPtr final {
     }
     T*  Get() const noexcept { return _ptr; }
     T*  operator->() const noexcept { return _ptr; }
-    T** At() noexcept { return &_ptr; }
+    T** AddressOf() noexcept { return &_ptr; }
 
     explicit operator bool() const noexcept { return _ptr != nullptr; }
 
@@ -60,17 +60,17 @@ class GdipPtr final {
         }
 
         if constexpr (std::is_same_v<T, Gdiplus::CGpEffect> || std::is_same_v<T, Gdiplus::GpCachedBitmap>) static_assert(!sizeof(T), "Unsupported Clone GDI+ type");
-        else if constexpr (std::is_base_of_v<Gdiplus::GpBrush, T>) return DllExports::GdipCloneBrush(_ptr, (Gdiplus::GpBrush**)ptr.At());
-        else if constexpr (std::is_same_v<T, Gdiplus::GpPen>) return DllExports::GdipClonePen(_ptr, ptr.At());
+        else if constexpr (std::is_base_of_v<Gdiplus::GpBrush, T>) return DllExports::GdipCloneBrush(_ptr, (Gdiplus::GpBrush**)ptr.AddressOf());
+        else if constexpr (std::is_same_v<T, Gdiplus::GpPen>) return DllExports::GdipClonePen(_ptr, ptr.AddressOf());
         else if constexpr (std::is_base_of_v<Gdiplus::GpCustomLineCap, T>) return DllExports::GdipCloneCustomLineCap(_ptr, (Gdiplus::GpCustomLineCap**)ptr.At());
-        else if constexpr (std::is_base_of_v<Gdiplus::GpImage, T>) return DllExports::GdipCloneImage(_ptr, (Gdiplus::GpImage**)ptr.At());
-        else if constexpr (std::is_same_v<T, Gdiplus::GpImageAttributes>) return DllExports::GdipCloneImageAttributes(_ptr, ptr.At());
-        else if constexpr (std::is_same_v<T, Gdiplus::GpPath>) return DllExports::GdipClonePath(_ptr, ptr.At());
-        else if constexpr (std::is_same_v<T, Gdiplus::GpRegion>) return DllExports::GdipCloneRegion(_ptr, ptr.At());
-        else if constexpr (std::is_same_v<T, Gdiplus::GpMatrix>) return DllExports::GdipCloneMatrix(_ptr, ptr.At());
-        else if constexpr (std::is_same_v<T, Gdiplus::GpFontFamily>) return DllExports::GdipCloneFontFamily(_ptr, ptr.At());
-        else if constexpr (std::is_same_v<T, Gdiplus::GpFont>) return DllExports::GdipCloneFont(_ptr, ptr.At());
-        else if constexpr (std::is_same_v<T, Gdiplus::GpStringFormat>) return DllExports::GdipCloneStringFormat(_ptr, ptr.At());
+        else if constexpr (std::is_base_of_v<Gdiplus::GpImage, T>) return DllExports::GdipCloneImage(_ptr, (Gdiplus::GpImage**)ptr.AddressOf());
+        else if constexpr (std::is_same_v<T, Gdiplus::GpImageAttributes>) return DllExports::GdipCloneImageAttributes(_ptr, ptr.AddressOf());
+        else if constexpr (std::is_same_v<T, Gdiplus::GpPath>) return DllExports::GdipClonePath(_ptr, ptr.AddressOf());
+        else if constexpr (std::is_same_v<T, Gdiplus::GpRegion>) return DllExports::GdipCloneRegion(_ptr, ptr.AddressOf());
+        else if constexpr (std::is_same_v<T, Gdiplus::GpMatrix>) return DllExports::GdipCloneMatrix(_ptr, ptr.AddressOf());
+        else if constexpr (std::is_same_v<T, Gdiplus::GpFontFamily>) return DllExports::GdipCloneFontFamily(_ptr, ptr.AddressOf());
+        else if constexpr (std::is_same_v<T, Gdiplus::GpFont>) return DllExports::GdipCloneFont(_ptr, ptr.AddressOf());
+        else if constexpr (std::is_same_v<T, Gdiplus::GpStringFormat>) return DllExports::GdipCloneStringFormat(_ptr, ptr.AddressOf());
         else static_assert(!sizeof(T), "Unsupported Clone GDI+ type");
     };
 
@@ -79,12 +79,15 @@ class GdipPtr final {
             return;
         }
 
+        // Here is an incomplete class.
         if constexpr (std::is_same_v<T, Gdiplus::CGpEffect>) {
             Gdiplus::GdipDeleteEffect(_ptr);
-        } else if constexpr (std::is_base_of_v<Gdiplus::GpBrush, T>) {
-            DllExports::GdipDeleteBrush(_ptr);
         } else if constexpr (std::is_same_v<T, Gdiplus::GpCachedBitmap>) {
             DllExports::GdipDeleteCachedBitmap(_ptr);
+        }
+
+        else if constexpr (std::is_base_of_v<Gdiplus::GpBrush, T>) {
+            DllExports::GdipDeleteBrush(_ptr);
         } else if constexpr (std::is_base_of_v<Gdiplus::GpCustomLineCap, T>) {
             DllExports::GdipDeleteCustomLineCap(_ptr);
         } else if constexpr (std::is_same_v<T, Gdiplus::GpFont>) {

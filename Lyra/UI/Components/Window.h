@@ -17,7 +17,7 @@ class Window : public Foundation::Base::RenderableNode<true> {
         Type = L"Object.Renderable.Window";
         InitializeComponents();
     }
-    ~Window() = default;
+    ~Window() override = default;
 
     void BindNativeHandle(HWND windowHandle) { renderer.ApplyWindow(windowHandle); }
     void UpdateSize(LPARAM lParam) {
@@ -30,13 +30,12 @@ class Window : public Foundation::Base::RenderableNode<true> {
     }
 
     void Present() { renderer.Present(); }
-    bool Render(Foundation::Managers::Renderer& renderer) override {
+    bool Render(Foundation::Managers::Renderer&) override {
         auto& graphics = renderer.AllocGraphics();
         Native::DllExports::GdipGraphicsClear(graphics.GetGraphics(), 0xFF262626);
 
         return true;
     }
-    bool Render() { return PreRender(renderer); }
 
     void RegisterEventCallback(Foundation::Events::EventCallback callback) { _eventCallbacks.push_back(std::move(callback)); }
     void DispatchEvent(Foundation::Events::EventArgs::EventTypes type, const Foundation::Events::EventPayload& payload, Gdiplus::Point mousePosition) {
@@ -49,9 +48,6 @@ class Window : public Foundation::Base::RenderableNode<true> {
         if (!e.target) {
             e.target = this;
         }
-
-        auto a = ((RenderableNode*)e.target)->GetUniqueID();
-        (int)std::sin(0);
 
         for (auto& callback : _eventCallbacks) {
             callback(e);
@@ -73,7 +69,7 @@ class Window : public Foundation::Base::RenderableNode<true> {
             gsl::owner<Button*> button = new Button{};
             button->SetLayoutRect({0, 0, 48, 30});
             button->SetContent(L"按钮 " + std::to_wstring(i));
-            button->AppendUniqueID(i + 1);
+            button->AssignUniqueID(i + 1);
             layout->AppendChild(button);
         }
         gsl::owner<Text*> text = new Text{};

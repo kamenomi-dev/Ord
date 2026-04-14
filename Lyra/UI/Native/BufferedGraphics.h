@@ -1,12 +1,12 @@
 #pragma once
+#define GDIPVER 0x0110 // NOSONAR, this is determined by Win32 Header. It's very bad
 #include <exception>
 #include <Windows.h>
 #include <Windowsx.h>
-
-#define GDIPVER 0x0110 // NOSONAR, this is determined by Win32 Header. It's very bad
 #include <gdiplus.h>
-#include "GdipPtr.h"
 #undef GDIPVER
+
+#include "GdipPtr.h"
 
 #pragma comment(lib, "gdiplus.lib")
 
@@ -103,7 +103,7 @@ class BufferedGraphics final {
   private:
     void UpdateGraphics() {
         _pGraphics.Reset();
-        DllExports::GdipCreateFromHDC(_bufferContext, _pGraphics.At());
+        DllExports::GdipCreateFromHDC(_bufferContext, _pGraphics.AddressOf());
         DllExports::GdipSetSmoothingMode(_pGraphics.Get(), Gdiplus::SmoothingModeAntiAlias8x8);
         DllExports::GdipSetTextRenderingHint(_pGraphics.Get(), Gdiplus::TextRenderingHintClearTypeGridFit);
     }
@@ -126,7 +126,7 @@ class BufferedGraphics final {
     }
 
   private:
-    GdipPtr<Gdiplus::GpGraphics> _pGraphics;
+    GdipPtr<Gdiplus::GpGraphics> _pGraphics = {};
 
     SIZE    _windowSize          = {};
     HWND    _windowHandle        = nullptr;

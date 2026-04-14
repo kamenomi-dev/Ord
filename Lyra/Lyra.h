@@ -23,6 +23,8 @@ class WindowFoundation {
   public:
     WindowFoundation() : _selfLayout(new UI::Components::Window) { Initialize(); }
     ~WindowFoundation() { Uninitialize(); }
+
+  public:
     bool Create(const std::wstring& title) {
         if (!CreateNative(title)) {
             return false;
@@ -97,15 +99,17 @@ class WindowFoundation {
         }
 
         if (message == WM_PAINT) {
-            { // I don't know whether I could remove this block.
-                PAINTSTRUCT paintStruct{};
-                const auto  hdc = ::BeginPaint(nativeHandle, &paintStruct);
-                ::EndPaint(nativeHandle, &paintStruct);
-            }
+            PAINTSTRUCT paintStruct{};
+            const auto  hdc = ::BeginPaint(nativeHandle, &paintStruct);
 
-            if (_selfLayout->Render()) {
+            paintStruct.rcPaint; // invalidated rect.
+
+            if (_selfLayout->PreRender(_selfLayout->renderer)) {
                 _selfLayout->Present();
             }
+
+            ::EndPaint(nativeHandle, &paintStruct);
+            return true;
         }
 
         if (message == WM_ERASEBKGND) {
@@ -132,12 +136,7 @@ class WindowFoundation {
             if (message != WM_NCHITTEST)
                 OutputDebugStringW(
                     std::format(
-                        L"Object: {} | Mouse Event({}): Component id - {} | Mouse.X - {} | Mouse.Y - {}\r\n",
-                        target->Type,
-                        message,
-                        target->GetUniqueID(),
-                        position.X,
-                        position.Y
+                        L"Object: {} | Mouse Event({}): Component id - {} | Mouse.X - {} | Mouse.Y - {}\r\n", target->Type, message, target->GetUniqueID(), position.X, position.Y
                     )
                         .c_str()
                 );
@@ -224,7 +223,6 @@ class WindowFoundation {
     }
 
     static LRESULT CALLBACK WindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-        // HACK: TLS??
         static std::unordered_map<HWND, WindowFoundation*> instanceMap{};
         static HWND                                        ownerHandle;
 
@@ -254,11 +252,11 @@ class WindowFoundation {
                 if (instanceMap.empty() || ownerHandle == nullptr) {
                     ::PostQuitMessage(0);
                 }
-                return 0;
-            } else {
-                if (it->second->HandleMessage(uMsg, wParam, lParam, result)) {
-                    return result;
-                }
+                return NULL;
+            }
+
+            if (it->second->HandleMessage(uMsg, wParam, lParam, result)) {
+                return result;
             }
         }
 
