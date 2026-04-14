@@ -47,8 +47,8 @@ class RenderableObject : public Object {
     virtual RenderableObject* HitTest(const Gdiplus::Point&) = 0;
     virtual void              ProcessEvent(const Events::EventArgs& e) { e; }
 
-    virtual bool Render(Foundation::Managers::Renderer& renderer)    = 0;
-    virtual bool PreRender(Foundation::Managers::Renderer& renderer) = 0;
+    virtual bool Render(Foundation::Managers::Renderer& renderer) = 0;
+    virtual bool PreRender(const RenderContext&)                  = 0;
 
     virtual void UpdateInteractBound(Gdiplus::Rect rect) { _interactBound = rect; };
 
@@ -245,13 +245,14 @@ struct PreRenderContext {
 template <bool IsNestable = false>
 class RenderableNode : public Node<IsNestable>, public RenderableObject {
   public:
-    bool PreRender(Foundation::Managers::Renderer& renderer) override {
+    bool PreRender(const RenderContext& context) override {
         if (!IsVisible()) {
             return false;
         }
 
-        auto& graphics   = renderer.AllocGraphics();
-        auto  targetRect = GetLayoutRect();
+        auto&       renderer   = *context.renderer;
+        auto&       graphics   = renderer.AllocGraphics();
+        const auto& targetRect = GetLayoutRect();
 
         Gdiplus::GraphicsState state;
         const auto             pGraphics = graphics.GetGraphics();
@@ -263,8 +264,8 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
 
         if constexpr (IsNestable) {
             for (auto* child : this->GetChildren()) {
-                auto node = static_cast<Node<IsNestable>*>(child);
-                static_cast<RenderableNode*>(node)->PreRender(renderer);
+                auto node = (Node<true>*)child;
+                ((RenderableNode*)node)->PreRender(context);
             }
         }
 

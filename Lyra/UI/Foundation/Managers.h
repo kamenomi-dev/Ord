@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <gsl/gsl>
+
 #include "../Native/GdipPtr.h"
 #include "../Native/BufferedGraphics.h"
 
@@ -6,7 +8,23 @@ namespace Lyra::UI::Components {
 class Window;
 };
 
-namespace Lyra::UI::Foundation::Managers {
+namespace Lyra::UI::Foundation {
+namespace Managers {
+class Renderer;
+};
+
+struct RenderContext {
+    gsl::owner<Managers::Renderer*> renderer  = nullptr;
+    Gdiplus::Rect                   dirtyRect = {};
+
+    static RenderContext Build(Managers::Renderer* renderer, RECT invalidRect) {
+        return {
+            renderer, {invalidRect.left, invalidRect.top, invalidRect.right - invalidRect.left, invalidRect.bottom - invalidRect.top}
+        };
+    };
+};
+
+namespace Managers {
 class Renderer final {
   public:
     Renderer()                           = default;
@@ -112,4 +130,5 @@ class FontManager final {
     std::map<FontDescriptor, FontCache>             _fontCache = {};
     std::unordered_map<std::string, FontDescriptor> _aliases   = {};
 };
-} // namespace Lyra::UI::Foundation::Managers
+}; // namespace Managers
+} // namespace Lyra::UI::Foundation

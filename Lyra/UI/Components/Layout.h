@@ -13,17 +13,17 @@ class Layout : public Foundation::Base::RenderableNode<true> {
     Layout() { Type = L"Object.Renderable.Layout"; }
 
     bool Render(Foundation::Managers::Renderer&) { return true; };
-    bool PreRender(Foundation::Managers::Renderer& renderer) {
+    bool PreRender(const Foundation::RenderContext& renderContext) {
         if (children.empty() || _layout.empty()) {
             return false;
         }
 
-        if (_isDirty) {
+        if (_isDirty || !renderContext.dirtyRect.IsEmptyArea()) {
             RecalculateComponentPosition();
             _isDirty = false;
         }
 
-        return RenderableNode<true>::PreRender(renderer);
+        return RenderableNode<true>::PreRender(renderContext);
     }
 
     void SetLayout(const LayoutData& layout) {
