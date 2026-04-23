@@ -17,28 +17,27 @@ class Text : public Foundation::Base::RenderableNode<false> {
     Text() { Type = L"Object.Renderable.Text"; }
 
     bool Render(Foundation::Managers::Renderer& renderer) override {
-        auto& graphics = renderer.AllocGraphics();
+        auto* graphics = renderer.AllocGraphics().GetGraphics();
 
-        Native::GdipPtr<Gdiplus::GpStringFormat> stringFormat;
-        Native::DllExports::GdipCreateStringFormat(NULL, NULL, stringFormat.AddressOf());
-        if (_alignX & Align::Center) Native::DllExports::GdipSetStringFormatAlign(stringFormat.Get(), Gdiplus::StringAlignmentCenter);
-        else if (_alignX & Align::End) Native::DllExports::GdipSetStringFormatAlign(stringFormat.Get(), Gdiplus::StringAlignmentFar);
-        if (_alignY & Align::Center) Native::DllExports::GdipSetStringFormatLineAlign(stringFormat.Get(), Gdiplus::StringAlignmentCenter);
-        else if (_alignY & Align::End) Native::DllExports::GdipSetStringFormatLineAlign(stringFormat.Get(), Gdiplus::StringAlignmentFar);
+        Native::GdiplusPointer<Gdiplus::GpStringFormat> stringFormat;
+        GdipCreateStringFormat(NULL, NULL, stringFormat.AddressOf());
+        if (_alignX & Align::Center) GdipSetStringFormatAlign(stringFormat.Get(), Gdiplus::StringAlignmentCenter);
+        else if (_alignX & Align::End) GdipSetStringFormatAlign(stringFormat.Get(), Gdiplus::StringAlignmentFar);
+        if (_alignY & Align::Center) GdipSetStringFormatLineAlign(stringFormat.Get(), Gdiplus::StringAlignmentCenter);
+        else if (_alignY & Align::End) GdipSetStringFormatLineAlign(stringFormat.Get(), Gdiplus::StringAlignmentFar);
 
         const auto& font = Foundation::Managers::FontManager::Instance().GetFont(L"Segoe UI", 16);
 
-        Native::GdipPtr<Gdiplus::GpSolidFill> fontBrush{};
-        Native::GdipPtr<Gdiplus::GpSolidFill> backgroundBrush{};
-        Native::DllExports::GdipCreateSolidFill(_fontColor.GetValue(), fontBrush.AddressOf());
-        Native::DllExports::GdipCreateSolidFill(_backgroundColor.GetValue(), backgroundBrush.AddressOf());
+        Native::GdiplusPointer<Gdiplus::GpSolidFill> fontBrush{};
+        Native::GdiplusPointer<Gdiplus::GpSolidFill> backgroundBrush{};
+        GdipCreateSolidFill(_fontColor.GetValue(), fontBrush.AddressOf());
+        GdipCreateSolidFill(_backgroundColor.GetValue(), backgroundBrush.AddressOf());
 
-        const auto     pGraphics = graphics.GetGraphics();
-        auto           rect      = GetLayoutRect();
-        Gdiplus::RectF textRect{0.f, 0.f, rect.Width * 1.f, rect.Height * 1.f};
+        const auto           rect = GetLayoutRect();
+        const Gdiplus::RectF textRect{0.f, 0.f, rect.Width * 1.f, rect.Height * 1.f};
 
-        Native::DllExports::GdipFillRectangle(pGraphics, backgroundBrush.Get(), 0.f, 0.f, textRect.Width, textRect.Height);
-        Native::DllExports::GdipDrawString(pGraphics, _content.c_str(), (int32_t)_content.length(), font.Get(), &textRect, stringFormat.Get(), fontBrush.Get());
+        GdipFillRectangle(graphics, backgroundBrush.Get(), 0.f, 0.f, textRect.Width, textRect.Height);
+        GdipDrawString(graphics, _content.c_str(), (int32_t)_content.length(), font.Get(), &textRect, stringFormat.Get(), fontBrush.Get());
         return true;
     };
 
@@ -55,8 +54,10 @@ class Text : public Foundation::Base::RenderableNode<false> {
   private:
     Gdiplus::Color _fontColor       = Gdiplus::Color::White;
     Gdiplus::Color _backgroundColor = Gdiplus::Color::Transparent;
-    std::wstring   _content         = L"文本";
     Align          _alignX          = Align::Center;
     Align          _alignY          = Align::Center;
+
+    std::wstring   _content        = L"文本";
+    FontDescriptor _fontDescriptor = {L"Segoe UI", 16.0f, Gdiplus::FontStyleRegular};
 };
 } // namespace Lyra::UI::Components

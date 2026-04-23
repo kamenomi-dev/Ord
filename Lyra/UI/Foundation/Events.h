@@ -1,9 +1,10 @@
 #pragma once
+#define GDIPVER 0x0110 // NOSONAR, this is determined by Win32 Header. It's very bad
 #include <functional>
 #include <optional>
 #include <variant>
-
 #include <Gdiplus.h>
+#undef GDIPVER
 
 namespace Lyra::UI::Foundation::Base {
 class RenderableObject;

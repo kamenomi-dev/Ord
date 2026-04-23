@@ -256,14 +256,14 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
 
         Gdiplus::GraphicsState state;
         const auto             pGraphics = graphics.GetGraphics();
-        Native::DllExports::GdipSaveGraphics(pGraphics, &state);
-        Native::DllExports::GdipTranslateWorldTransform(pGraphics, targetRect.X * 1.f, targetRect.Y * 1.f, Gdiplus::MatrixOrderAppend);
-        Native::DllExports::GdipSetClipRectI(pGraphics, 0, 0, targetRect.Width, targetRect.Height, Gdiplus::CombineModeIntersect);
+        GdipSaveGraphics(pGraphics, &state);
+        GdipTranslateWorldTransform(pGraphics, targetRect.X * 1.f, targetRect.Y * 1.f, Gdiplus::MatrixOrderAppend);
+        GdipSetClipRectI(pGraphics, 0, 0, targetRect.Width, targetRect.Height, Gdiplus::CombineModeIntersect);
 
         Render(renderer);
 
         if constexpr (!IsNestable) {
-            Native::DllExports::GdipRestoreGraphics(pGraphics, state);
+            GdipRestoreGraphics(pGraphics, state);
             return true;
         }
 
@@ -274,7 +274,10 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
 #ifdef _DEBUG
             OutputDebugStringW(
                 std::format(
-                    L"Object: {} | Component id - {} | RenderDirtyStatus: {}\r\n", node->Type, node->GetUniqueID(), rect.IntersectsWith(context.dirtyRect) ? L"Retained" : L"Skipped"
+                    L"Object: {} | Component id - {} | RenderDirtyStatus: {}\r\n",
+                    node->Type,
+                    node->GetUniqueID(),
+                    rect.IntersectsWith(context.dirtyRect) ? L"Retained" : L"Skipped"
                 )
                     .c_str()
             );
@@ -287,7 +290,7 @@ class RenderableNode : public Node<IsNestable>, public RenderableObject {
             node->PreRender(context);
         }
 
-        Native::DllExports::GdipRestoreGraphics(pGraphics, state);
+        GdipRestoreGraphics(pGraphics, state);
         return true;
     }
 

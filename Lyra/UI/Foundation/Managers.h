@@ -1,8 +1,20 @@
 ﻿#pragma once
 #include <gsl/gsl>
 
-#include "../Native/GdipPtr.h"
+#include "../Native/GdiplusPointer.h"
 #include "../Native/BufferedGraphics.h"
+
+namespace Lyra::UI {
+struct FontDescriptor {
+    std::wstring       family = L"Segoe UI";
+    float              size   = 24.0f;
+    Gdiplus::FontStyle style  = Gdiplus::FontStyleRegular;
+
+    bool operator<(const FontDescriptor& other) const { return std::tie(family, size, style) < std::tie(other.family, other.size, other.style); }
+
+    bool operator==(const FontDescriptor& other) const { return family == other.family && size == other.size && style == other.style; }
+};
+} // namespace Lyra::UI
 
 namespace Lyra::UI::Components {
 class Window;
@@ -48,30 +60,17 @@ class Renderer final {
   private:
     friend class Components::Window;
 
-    void ApplyWindow(HWND windowHandle) { _bufferedGraphics.BindToWindow(windowHandle); };
-
     bool Present() { return _bufferedGraphics.PresentBuffer(); };
     void UpdateSize(LPARAM lParam) { _bufferedGraphics.UpdateSize(lParam); };
+    void ApplyWindow(HWND windowHandle) { _bufferedGraphics.BindToWindow(windowHandle); };
 
   private:
     Native::BufferedGraphics _bufferedGraphics = {};
 };
 
-// Font Management
-
-struct FontDescriptor {
-    std::wstring       family = L"Segoe UI";
-    float              size   = 24.0f;
-    Gdiplus::FontStyle style  = Gdiplus::FontStyleRegular;
-
-    bool operator<(const FontDescriptor& other) const { return std::tie(family, size, style) < std::tie(other.family, other.size, other.style); }
-
-    bool operator==(const FontDescriptor& other) const { return family == other.family && size == other.size && style == other.style; }
-};
-
 class FontManager final {
   public:
-    using FontCache = Native::GdipPtr<Gdiplus::GpFont>;
+    using FontCache = Native::GdiplusPointer<Gdiplus::GpFont>;
 
   public:
     FontManager(FontManager&&)                 = delete;
@@ -101,14 +100,14 @@ class FontManager final {
             return it->second;
         }
 
-        FontCache                              font{};
-        Native::GdipPtr<Gdiplus::GpFontFamily> fontFamily{};
-        Native::DllExports::GdipCreateFontFamilyFromName(desc.family.c_str(), nullptr, fontFamily.AddressOf());
-        auto status = Native::DllExports::GdipCreateFont(fontFamily.Get(), desc.size, desc.style, Gdiplus::UnitPixel, font.AddressOf());
+        FontCache                                     font{};
+        Native::GdiplusPointer<Gdiplus::GpFontFamily> fontFamily{};
+        ::GdipCreateFontFamilyFromName(desc.family.c_str(), nullptr, fontFamily.AddressOf());
+        auto status = ::GdipCreateFont(fontFamily.Get(), desc.size, desc.style, Gdiplus::UnitPixel, font.AddressOf());
 
         if (status != Gdiplus::Ok) {
-            Native::DllExports::GdipCreateFontFamilyFromName(L"Segoe UI", nullptr, fontFamily.AddressOf());
-            Native::DllExports::GdipCreateFont(fontFamily.Get(), 24.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel, font.AddressOf());
+            ::GdipCreateFontFamilyFromName(L"Segoe UI", nullptr, fontFamily.AddressOf());
+            ::GdipCreateFont(fontFamily.Get(), 24.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel, font.AddressOf());
         }
 
         font.Clone(_fontCache[desc]);

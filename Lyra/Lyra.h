@@ -7,7 +7,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "UI/Startup.h"
 #include "UI/Components/Window.h"
 
 #pragma comment(lib, "dwmapi.lib")
@@ -77,10 +76,10 @@ class WindowFoundation {
         }
 
         nativeHandle = CreateWindowExW(
-            0,
+            WS_EX_APPWINDOW | WS_EX_WINDOWEDGE,
             MAKEINTATOM(_CommonClassAtom),
             title.c_str(),
-            WS_THICKFRAME | WS_BORDER | WS_MAXIMIZEBOX | WS_MINIMIZEBOX,
+            WS_OVERLAPPEDWINDOW | WS_DLGFRAME,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
@@ -96,10 +95,12 @@ class WindowFoundation {
     bool HandleMessage(UINT message, WPARAM wParam, LPARAM lParam, _Out_ LRESULT& outResult) {
         outResult = NULL;
 
-        if (message == WM_CREATE) {
-            MARGINS margins = {0, 0, 1, 0};
+        if (message == WM_NCCREATE) {
+            DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_DONOTROUND;
+            DwmSetWindowAttribute(nativeHandle, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
+            MARGINS margins = {1, 1, 1, 1};
             DwmExtendFrameIntoClientArea(nativeHandle, &margins);
-            return true;
+            return false;
         }
 
         if (message == WM_SIZE) {
@@ -107,33 +108,24 @@ class WindowFoundation {
             return true;
         }
 
-        if (message == WM_NCPAINT) {
-            // PAINTSTRUCT paintStruct{};
-            //::BeginPaint(nativeHandle, &paintStruct);
-            // const auto invalidRect   = paintStruct.rcPaint;
-            auto renderContext = UI::Foundation::RenderContext::Build(&_selfLayout->renderer, {NULL});
+        if (message == WM_PAINT) {
+            PAINTSTRUCT paintStruct{};
+            ::BeginPaint(nativeHandle, &paintStruct);
 
-            renderContext.dirtyRect = _selfLayout->GetLayoutRect();
+            const auto invalidRect   = paintStruct.rcPaint;
+            auto       renderContext = UI::Foundation::RenderContext::Build(&_selfLayout->renderer, invalidRect);
 
-            const auto graphics = _selfLayout->renderer.AllocGraphics().GetGraphics();
-            // UI::Native::DllExports::GdipSetClipRectI(
-            //     graphics, invalidRect.left, invalidRect.top, invalidRect.right - invalidRect.left, invalidRect.bottom - invalidRect.top, Gdiplus::CombineModeIntersect
-            //);
-            UI::Native::DllExports::GdipGraphicsClear(graphics, 0xFFFF0000);
+            const auto             graphics = _selfLayout->renderer.AllocGraphics().GetGraphics();
+            Gdiplus::GraphicsState state;
+            GdipSaveGraphics(graphics, &state);
+            GdipSetClipRectI(graphics, invalidRect.left, invalidRect.top, invalidRect.right - invalidRect.left, invalidRect.bottom - invalidRect.top, Gdiplus::CombineModeReplace);
 
             if (_selfLayout->PreRender(renderContext)) {
                 _selfLayout->Present();
             }
 
-            UI::Native::GdipPtr<Gdiplus::GpPen> pen{};
-            UI::Native::DllExports::GdipCreatePen1(0xFFFF0000, 3, Gdiplus::UnitPixel, pen.AddressOf());
-
-            //::EndPaint(nativeHandle, &paintStruct);
-            return true;
-        }
-
-        if (message == WM_NCACTIVATE) {
-            ::RedrawWindow(nativeHandle, nullptr, nullptr, RDW_UPDATENOW);
+            GdipRestoreGraphics(graphics, state);
+            ::EndPaint(nativeHandle, &paintStruct);
             return true;
         }
 
@@ -142,27 +134,19 @@ class WindowFoundation {
         }
 
         if (message == WM_NCCALCSIZE) {
-            auto params = (NCCALCSIZE_PARAMS*)lParam;
-            if (wParam == TRUE) {
-                WINDOWPLACEMENT windowPlacement = {};
-                windowPlacement.length          = sizeof WINDOWPLACEMENT;
-                GetWindowPlacement(nativeHandle, &windowPlacement);
+            if (wParam == FALSE) {
+                return true;
+            }
 
-                if (windowPlacement.showCmd != SW_SHOWMAXIMIZED) {
-                    return true;
-                }
+            if (IsZoomed(nativeHandle)) {
+                NCCALCSIZE_PARAMS* params      = (NCCALCSIZE_PARAMS*)lParam;
+                HMONITOR           monitor     = MonitorFromWindow(nativeHandle, MONITOR_DEFAULTTONEAREST);
+                MONITORINFO        monitorInfo = {};
 
-                auto        monitor     = MonitorFromWindow(nativeHandle, MONITOR_DEFAULTTONEAREST);
-                MONITORINFO monitorInfo = {sizeof(monitorInfo)};
-
+                monitorInfo.cbSize = sizeof(monitorInfo);
                 if (GetMonitorInfoW(monitor, &monitorInfo)) {
                     params->rgrc[0] = monitorInfo.rcWork;
                 }
-            } else {
-                params->rgrc[0].top    -= 4;
-                params->rgrc[0].left   -= 4;
-                params->rgrc[0].bottom -= 4;
-                params->rgrc[0].right  -= 4;
             }
             return true;
         }
@@ -282,6 +266,7 @@ class WindowFoundation {
             if (instanceMap.size() == 1) {
                 ownerHandle = hWnd;
             }
+
             self->HandleMessage(uMsg, wParam, lParam, result);
             return TRUE;
         }

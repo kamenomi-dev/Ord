@@ -160,8 +160,7 @@
     <ClInclude Include="UI\Foundation\Events.h" />
     <ClInclude Include="UI\Foundation\Managers.h" />
     <ClInclude Include="UI\Native\BufferedGraphics.h" />
-    <ClInclude Include="UI\Native\GdipPtr.h" />
-    <ClInclude Include="UI\Startup.h" />
+    <ClInclude Include="UI\Native\GdiplusPointer.h" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="Others\CommonManifest.manifest" />

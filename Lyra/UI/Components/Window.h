@@ -32,7 +32,7 @@ class Window : public Foundation::Base::RenderableNode<true> {
     void Present() { renderer.Present(); }
     bool Render(Foundation::Managers::Renderer&) override {
         auto& graphics = renderer.AllocGraphics();
-        Native::DllExports::GdipGraphicsClear(graphics.GetGraphics(), 0xFF262626);
+        GdipGraphicsClear(graphics.GetGraphics(), 0xFF262626);
 
         return true;
     }
@@ -65,10 +65,11 @@ class Window : public Foundation::Base::RenderableNode<true> {
     void InitializeComponents() {
         gsl::owner<Layout*> layout = new Layout{};
 
+        const wchar_t* buttonContents[] = {L"-", L"最大化", L"关闭"};
         for (uint8_t i = 0; i < 3; i++) {
             gsl::owner<Button*> button = new Button{};
             button->SetLayoutRect({0, 0, 48, 30});
-            button->SetContent(L"按钮 " + std::to_wstring(i));
+            button->SetContent(buttonContents[i]);
             button->AssignUniqueID(i + 1);
             layout->AppendChild(button);
         }

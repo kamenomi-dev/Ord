@@ -4,11 +4,13 @@
 #include <Windows.h>
 #include <Windowsx.h>
 #include <gdiplus.h>
+
+#include "GdiplusPointer.h"
 #undef GDIPVER
 
-#include "GdipPtr.h"
-
 #pragma comment(lib, "gdiplus.lib")
+
+using namespace Gdiplus::DllExports;
 
 namespace Lyra::UI::Native {
 class BufferedGraphics final {
@@ -79,10 +81,10 @@ class BufferedGraphics final {
 
     auto GetWindow() const { return _windowHandle; };
     auto GetGraphics() {
-        if (!_pGraphics) {
+        if (!_graphics) {
             UpdateGraphics();
         }
-        return _pGraphics.Get();
+        return _graphics.Get();
     }
     void BindToWindow(HWND hWnd) {
         if (!::IsWindow(hWnd)) {
@@ -90,7 +92,6 @@ class BufferedGraphics final {
         }
 
         if (hWnd == _windowHandle) {
-            // As meeting this abort, it means the window has been binded.
             abort();
         }
 
@@ -102,10 +103,10 @@ class BufferedGraphics final {
 
   private:
     void UpdateGraphics() {
-        _pGraphics.Reset();
-        DllExports::GdipCreateFromHDC(_bufferContext, _pGraphics.AddressOf());
-        DllExports::GdipSetSmoothingMode(_pGraphics.Get(), Gdiplus::SmoothingModeAntiAlias8x8);
-        DllExports::GdipSetTextRenderingHint(_pGraphics.Get(), Gdiplus::TextRenderingHintClearTypeGridFit);
+        _graphics.Reset();
+        ::GdipCreateFromHDC(_bufferContext, _graphics.AddressOf());
+        ::GdipSetSmoothingMode(_graphics.Get(), Gdiplus::SmoothingModeAntiAlias8x8);
+        ::GdipSetTextRenderingHint(_graphics.Get(), Gdiplus::TextRenderingHintClearTypeGridFit);
     }
 
     HBITMAP CreateBufferBitmap(int32_t width, int32_t height) const {
@@ -126,7 +127,7 @@ class BufferedGraphics final {
     }
 
   private:
-    GdipPtr<Gdiplus::GpGraphics> _pGraphics = {};
+    GdiplusPointer<Gdiplus::GpGraphics> _graphics = {};
 
     SIZE    _windowSize          = {};
     HWND    _windowHandle        = nullptr;
